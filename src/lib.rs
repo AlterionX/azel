@@ -1,12 +1,11 @@
-mod discord;
-mod schema;
+pub mod discord;
 pub mod db;
 
 pub mod cmd;
 
 use cmd::{CommandTreeTop, DiscordCommandDescriptor};
 use config::ConfigError;
-use serenity::{all::{ApplicationId, CommandPermissions, Interaction}, async_trait, client::{Client, EventHandler}, http::CacheHttp, model::{id::{ChannelId, MessageId, GuildId}, event::MessageUpdateEvent, channel::{Message, Reaction}, gateway::Ready}, prelude::{Context as DiscordContext, GatewayIntents}};
+use serenity::{all::{ClientBuilder, CommandPermissions, Interaction}, async_trait, client::{Client, EventHandler}, http::CacheHttp, model::{channel::{Message, Reaction}, event::MessageUpdateEvent, gateway::Ready, id::{ChannelId, GuildId, MessageId}}, prelude::{Context as DiscordContext, GatewayIntents}};
 use tracing::{self as trc, Instrument};
 
 use discord::ExecutionContext;
@@ -60,22 +59,17 @@ impl <R> DiscordHandler<R> {
 
 #[async_trait]
 impl <R: DiscordCommandDescriptor> EventHandler for DiscordHandler<R> {
-    async fn ready(&self, ctx: DiscordContext, _data_about_bot: Ready) {
+    async fn ready(&self, ctx: DiscordContext, data_about_bot: Ready) {
         trc::info!("CMD-SETUP");
         let commands: Vec<_> = self.command_descriptions.clone().into_iter().map(|ctt| ctt.into_discord_command()).collect();
         trc::info!("CMD-SETUP-GUILD {:?}", self.home_guild_id);
-        self.home_guild_id.set_commands(
-            ctx.http(),
-            commands
-        ).await.expect("commands should have updated appropriately");
-        // Commented out -- debugging.
-        // for guild in data_about_bot.guilds {
-        //     trc::info!("CMD-SETUP-GUILD {:?}", guild.id);
-        //     guild.id.set_commands(
-        //         ctx.http(),
-        //         commands.clone()
-        //     ).await.expect("commands should have updated appropriately");
-        // }
+        for guild in data_about_bot.guilds {
+            trc::info!("CMD-SETUP-GUILD {:?}", guild.id);
+            guild.id.set_commands(
+                ctx.http(),
+                commands.clone()
+            ).await.expect("commands should have updated appropriately");
+        }
         trc::info!("CMD-SETUP-CMPL");
     }
 
@@ -164,6 +158,7 @@ impl <R: DiscordCommandDescriptor> EventHandler for DiscordHandler<R> {
                         ctx: &dctx,
                         cmd: &command,
                         db_cfg: &self.db_cfg,
+                        is_first_response: true.into(),
                     };
                     match cmd::Request::<R>::parse(&command) {
                         Ok(req) => {
@@ -203,16 +198,26 @@ impl <R: DiscordCommandDescriptor> EventHandler for DiscordHandler<R> {
 pub struct Discord(pub Client);
 
 pub async fn build_client<R: DiscordCommandDescriptor>(
-    token: &str,
-    application_id: ApplicationId,
-    handler: DiscordHandler<R>,
+    cfg: Configuration,
+    command_descriptions: Vec<CommandTreeTop<R>>,
+    builder_config_fn: impl FnOnce(ClientBuilder) -> ClientBuilder,
 ) -> serenity::Result<Discord> {
+    let token = cfg.discord.token.as_str();
+    let application_id = cfg.discord.application.into();
+    let handler = DiscordHandler {
+        home_guild_id: cfg.home_guild.id.into(),
+        db_cfg: cfg.database,
+        command_descriptions,
+    };
+
     let intents = GatewayIntents::non_privileged();
 
-    let client = Client::builder(token, intents)
+    let builder = Client::builder(token, intents)
         .application_id(application_id)
-        .event_handler(handler)
-        .await?;
+        .event_handler(handler);
+    let builder = builder_config_fn(builder);
+
+    let client = builder.await?;
 
     Ok(Discord(client))
 }
@@ -224,7 +229,7 @@ pub fn load_configuration(cfg_path: &str) -> Result<Configuration, ConfigError> 
         .try_deserialize()
 }
 
-pub async fn easy_setup_and_run<R: DiscordCommandDescriptor>(command_descriptions: Vec<CommandTreeTop<R>>) {
+pub fn setup_default_log_and_load_configuration() -> Result<Configuration, ConfigError> {
     tracing_subscriber::fmt::init();
 
     trc::info!("LOG-CMPL");
@@ -233,7 +238,7 @@ pub async fn easy_setup_and_run<R: DiscordCommandDescriptor>(command_description
         let mut args: Vec<String> = std::env::args().collect();
         if args.len() != 2 {
             trc::error!("BAD-ARGS args={:?}", args);
-            return;
+            panic!("bad args");
         }
         let cfg_path = args.remove(1);
         Arguments {
@@ -242,13 +247,13 @@ pub async fn easy_setup_and_run<R: DiscordCommandDescriptor>(command_description
     };
 
 
-    let cfg = load_configuration(cfg_path.as_str()).unwrap();
+    load_configuration(cfg_path.as_str())
+}
 
-    let mut discord = build_client(cfg.discord.token.as_str(), cfg.discord.application.into(), DiscordHandler {
-        home_guild_id: cfg.home_guild.id.into(),
-        db_cfg: cfg.database,
-        command_descriptions,
-    }).await.expect("client to be built");
+pub async fn easy_setup_and_run<R: DiscordCommandDescriptor>(command_descriptions: Vec<CommandTreeTop<R>>) {
+    let cfg = setup_default_log_and_load_configuration().unwrap();
+
+    let mut discord = build_client(cfg, command_descriptions, |b| b).await.expect("client to be built");
 
     trc::info!("BOOT-CMPL");
 

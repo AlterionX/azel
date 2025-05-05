@@ -42,6 +42,16 @@ pub enum RawCommandOptionEntry {
         description: &'static str,
         required: bool,
     },
+    Channel {
+        name: &'static str,
+        description: &'static str,
+        required: bool,
+    },
+    Attachment {
+        name: &'static str,
+        description: &'static str,
+        required: bool,
+    },
     StringSelect {
         name: &'static str,
         description: &'static str,
@@ -59,6 +69,8 @@ impl RawCommandOptionEntry {
             Self::Boolean { .. } => CommandOptionType::Boolean,
             Self::String { .. } => CommandOptionType::String,
             Self::User { .. } => CommandOptionType::User,
+            Self::Channel { .. } => CommandOptionType::Channel,
+            Self::Attachment { .. } => CommandOptionType::Attachment,
             Self::StringSelect { .. } => CommandOptionType::String,
         }
     }
@@ -70,6 +82,8 @@ impl RawCommandOptionEntry {
             Self::Boolean { name, .. } => name,
             Self::String { name, .. } => name,
             Self::User { name, .. } => name,
+            Self::Channel { name, .. } => name,
+            Self::Attachment { name, .. } => name,
             Self::StringSelect { name, .. } => name,
         }
     }
@@ -81,6 +95,8 @@ impl RawCommandOptionEntry {
             Self::Boolean { required, .. } => required,
             Self::String { required, .. } => required,
             Self::User { required, .. } => required,
+            Self::Channel { required, .. } => required,
+            Self::Attachment { required, .. } => required,
             Self::StringSelect { required, .. } => required,
         }
     }
@@ -92,6 +108,8 @@ impl RawCommandOptionEntry {
             Self::Boolean { description, .. } => description,
             Self::String { description, .. } => description,
             Self::User { description, .. } => description,
+            Self::Channel { description, .. } => description,
+            Self::Attachment { description, .. } => description,
             Self::StringSelect { description, .. } => description,
         }
     }
@@ -105,6 +123,8 @@ impl RawCommandOptionEntry {
             Self::Boolean { .. } => {},
             Self::String { .. } => {},
             Self::User { .. } => {},
+            Self::Channel { .. } => {},
+            Self::Attachment { .. } => {},
             Self::StringSelect { choices, .. } => {
                 for (name, value) in choices {
                     builder = builder.add_string_choice(*name, *value);
