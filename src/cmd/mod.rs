@@ -154,6 +154,8 @@ pub enum CommandTreeTop<RequestKind> {
     },
     NakedChatInput(RequestKind, Option<Permissions>),
     NakedUser(RequestKind, Option<Permissions>),
+    MessageContextMenu(RequestKind, Option<Permissions>),
+    GlobalMessageContextMenu(RequestKind, Option<Permissions>),
 }
 
 impl <R: DiscordCommandDescriptor> CommandTreeTop<R> {
@@ -220,6 +222,41 @@ impl <R: DiscordCommandDescriptor> CommandTreeTop<R> {
                 }
                 builder
             },
+            Self::MessageContextMenu(cmd, opt_default_perm) => {
+                let mut builder = CreateCommand::new(cmd.name()).kind(CommandType::Message);
+                if let Some(perm) = opt_default_perm {
+                    builder = builder.default_member_permissions(perm);
+                }
+                let options = cmd.options();
+                if !options.is_empty() {
+                    builder = builder.set_options(options.into_iter().map(|rcoe| {
+                        rcoe.to_option()
+                    }).collect());
+                }
+                builder
+            },
+            Self::GlobalMessageContextMenu(cmd, opt_default_perm) => {
+                let mut builder = CreateCommand::new(cmd.name()).kind(CommandType::Message);
+                if let Some(perm) = opt_default_perm {
+                    builder = builder.default_member_permissions(perm);
+                }
+                let options = cmd.options();
+                if !options.is_empty() {
+                    builder = builder.set_options(options.into_iter().map(|rcoe| {
+                        rcoe.to_option()
+                    }).collect());
+                }
+                builder
+            },
+        }
+    }
+
+    pub fn is_global(&self) -> bool {
+        match self {
+            Self::Complex { .. } | Self::NakedChatInput(..) | Self::NakedUser(..) | Self::MessageContextMenu(..) => {
+                false
+            },
+            Self::GlobalMessageContextMenu(..) => true,
         }
     }
 }
@@ -346,7 +383,7 @@ mod test {
                     set.insert(*c);
                 }
             },
-            CommandTreeTop::NakedUser(cmd, _) | CommandTreeTop::NakedChatInput(cmd, _) => {
+            CommandTreeTop::NakedUser(cmd, _) | CommandTreeTop::NakedChatInput(cmd, _) | CommandTreeTop::MessageContextMenu(cmd, _) => {
                 assert!(!set.contains(cmd));
                 set.insert(*cmd);
             },
