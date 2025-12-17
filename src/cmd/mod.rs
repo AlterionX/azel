@@ -305,7 +305,7 @@ impl <'a, RequestKind: DiscordCommandDescriptor> Request<'a, RequestKind> {
 
 // TODO convert this into an importable test suite
 #[cfg(test)]
-mod test {
+pub mod test {
     use std::collections::HashSet;
 
     use strum::{EnumCount, EnumIter, IntoEnumIterator};
@@ -398,13 +398,17 @@ mod test {
         assert_eq!(found_commands.len(), TestRequestKind::COUNT);
     }
 
-    #[test]
-    fn description_not_too_long() {
-        for c in TestRequestKind::iter() {
+    pub fn test_command_description_lengths<RK: IntoEnumIterator + DiscordCommandDescriptor>() {
+        for c in RK::iter() {
             assert!(c.description().len() < 100, "{c:?}");
             for o in c.options() {
                 assert!(o.description().len() < 100, "{c:?}, {o:?}")
             }
         }
+    }
+
+    #[test]
+    fn description_not_too_long() {
+        test_command_description_lengths::<TestRequestKind>();
     }
 }
