@@ -62,3 +62,8 @@ features = ["postgres", "numeric", "chrono"]
 [dependencies.diesel-async]
 version = "0.7"
 features = ["postgres"]
+
+[features]
+default = []
+# This will let us export some helpers when needed.
+test-utils = []

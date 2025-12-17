@@ -303,15 +303,34 @@ impl <'a, RequestKind: DiscordCommandDescriptor> Request<'a, RequestKind> {
     }
 }
 
+#[cfg(any(feature = "test-utils", test))]
+pub mod test_utils {
+    use strum::IntoEnumIterator;
+
+    use crate::cmd::DiscordCommandDescriptor;
+
+    pub fn test_command_description_lengths<RK: IntoEnumIterator + DiscordCommandDescriptor>() {
+        for c in RK::iter() {
+            assert!(c.description().len() < 100, "{c:?}");
+            for o in c.options() {
+                assert!(o.description().len() < 100, "{c:?}, {o:?}")
+            }
+        }
+    }
+
+}
+
 // TODO convert this into an importable test suite
 #[cfg(test)]
 pub mod test {
     use std::collections::HashSet;
 
-    use strum::{EnumCount, EnumIter, IntoEnumIterator};
+    use strum::{EnumCount, EnumIter};
     use tracing as trc;
 
-    use super::{CommandTreeTop, RawCommandOptionEntry, DiscordCommandDescriptor};
+    use crate::cmd::test_utils::test_command_description_lengths;
+
+    use super::{CommandTreeTop, RawCommandOptionEntry};
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumCount, EnumIter)]
     pub enum TestRequestKind {
@@ -396,15 +415,6 @@ pub mod test {
         let command_tree = generate_command_descriptions();
         command_tree.iter().for_each(|ctt| iter_tree(ctt, &mut found_commands));
         assert_eq!(found_commands.len(), TestRequestKind::COUNT);
-    }
-
-    pub fn test_command_description_lengths<RK: IntoEnumIterator + DiscordCommandDescriptor>() {
-        for c in RK::iter() {
-            assert!(c.description().len() < 100, "{c:?}");
-            for o in c.options() {
-                assert!(o.description().len() < 100, "{c:?}, {o:?}")
-            }
-        }
     }
 
     #[test]
