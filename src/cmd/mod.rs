@@ -402,7 +402,7 @@ pub mod test {
                     set.insert(*c);
                 }
             },
-            CommandTreeTop::NakedUser(cmd, _) | CommandTreeTop::NakedChatInput(cmd, _) | CommandTreeTop::MessageContextMenu(cmd, _) => {
+            CommandTreeTop::GlobalMessageContextMenu(cmd, _) | CommandTreeTop::NakedUser(cmd, _) | CommandTreeTop::NakedChatInput(cmd, _) | CommandTreeTop::MessageContextMenu(cmd, _) => {
                 assert!(!set.contains(cmd));
                 set.insert(*cmd);
             },
