@@ -11,6 +11,9 @@ pub trait DiscordCommandDescriptor: Debug + Clone + Copy + PartialEq + Eq + Hash
 
     fn name(&self) -> &'static str;
     fn description(&self) -> &'static str;
+    // TODO rework to force required options before optional, by removing optional from
+    // RawCommandOptionEntry and returning {optional_options, required_options} and doing
+    // the ordering up here instead
     fn options(&self) -> Vec<RawCommandOptionEntry>;
     fn parse<'a>(cmd: &'a CommandInteraction) -> Result<Self::Args<'a>, RequestError>;
 }
@@ -21,6 +24,13 @@ pub enum RawCommandOptionEntry {
         name: &'static str,
         description: &'static str,
         required: bool,
+    },
+    LimitedInteger {
+        name: &'static str,
+        description: &'static str,
+        required: bool,
+        max: u64,
+        min: u64,
     },
     Number {
         name: &'static str,
@@ -72,6 +82,7 @@ impl RawCommandOptionEntry {
             Self::Channel { .. } => CommandOptionType::Channel,
             Self::Attachment { .. } => CommandOptionType::Attachment,
             Self::StringSelect { .. } => CommandOptionType::String,
+            Self::LimitedInteger { .. } => CommandOptionType::Integer,
         }
     }
 
@@ -85,6 +96,7 @@ impl RawCommandOptionEntry {
             Self::Channel { name, .. } => name,
             Self::Attachment { name, .. } => name,
             Self::StringSelect { name, .. } => name,
+            Self::LimitedInteger { name, .. } => name,
         }
     }
 
@@ -98,6 +110,7 @@ impl RawCommandOptionEntry {
             Self::Channel { required, .. } => required,
             Self::Attachment { required, .. } => required,
             Self::StringSelect { required, .. } => required,
+            Self::LimitedInteger { required, .. } => required,
         }
     }
 
@@ -111,6 +124,7 @@ impl RawCommandOptionEntry {
             Self::Channel { description, .. } => description,
             Self::Attachment { description, .. } => description,
             Self::StringSelect { description, .. } => description,
+            Self::LimitedInteger { description, .. } => description,
         }
     }
 
@@ -129,6 +143,9 @@ impl RawCommandOptionEntry {
                 for (name, value) in choices {
                     builder = builder.add_string_choice(*name, *value);
                 }
+            },
+            Self::LimitedInteger { max, min, .. } => {
+                builder = builder.max_int_value(*max).min_int_value(*min);
             },
         }
         builder

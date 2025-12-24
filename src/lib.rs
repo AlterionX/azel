@@ -63,7 +63,7 @@ impl <R: DiscordCommandDescriptor> EventHandler for DiscordHandler<R> {
         trc::info!("CMD-SETUP");
         let (global_command_descriptions, local_command_descriptions): (Vec<_>, Vec<_>) = self.command_descriptions.clone().into_iter().partition(|cmd| cmd.is_global());
         let local_commands: Vec<_> = local_command_descriptions.into_iter().map(|ctt| ctt.into_discord_command()).collect();
-        trc::info!("CMD-SETUP-GUILD {:?}", self.home_guild_id);
+        trc::info!("CMD-HOME-GUILD {:?}", self.home_guild_id);
         for guild in data_about_bot.guilds {
             trc::info!("CMD-SETUP-GUILD {:?}", guild.id);
             guild.id.set_commands(
